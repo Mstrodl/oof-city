@@ -20,6 +20,7 @@ let ytdl = require("youtube-dl")
  * @prop {VoiceConnection} connection The connection to the voice channel
  * @prop {Boolean} ready Whether or not the OofPlayer's VoiceConnection is ready to transmit audio
  * @prop {Boolean} authed Whether or not the OofPlayer's VoiceConnection has authenticated to the voice WS
+ * @prop {Number} startTime The time (in milliseconds) at which the player was created. Used for benchmarking purposes
  */
 module.exports = class OofPlayer {
   constructor(opts, server) {
@@ -28,6 +29,7 @@ module.exports = class OofPlayer {
     this.channelId = opts.channelId
     this.ws = opts.ws
     this.userId = opts.userId
+    this.startTime = new Date().getTime()
     this.connection = new VoiceConnection(this.guildId, {
       shard: {
         sendWS: (op, data) => {
@@ -46,6 +48,7 @@ module.exports = class OofPlayer {
         }
       }
     })
+    // We send the switchChannel() command to set the channelID and request voiceStateUpdate packet
     this.connection.switchChannel(this.channelId)
     this.ready = false
     this.authed = false
@@ -58,6 +61,7 @@ module.exports = class OofPlayer {
     this.connection.on("reconnecting", this.onReconnecting.bind(this))
     this.connection.on("warn", message => console.warn(message))
     this.connection.on("ready", this.onReady.bind(this))
+    this.connection.on("pong", latency => console.log(`Got pong from gateway ${latency}ms`))
   }
 
   /**
@@ -172,7 +176,7 @@ module.exports = class OofPlayer {
   }
 
   /**
-   * Plays an arbitrary track. Called by the play websocket event
+   * Plays an arbitrary track. Called by the play websocket play event
    * @private
    * @arg {Object} [track] The track to be played
    * @arg {String} [track.url] The URL of the track to be played
@@ -183,6 +187,7 @@ module.exports = class OofPlayer {
   playArbitraryTrack(track, opts = {}) {
     let stream = ytdl(track.url, ["--format", "bestaudio", "--default-search", "ytsearch:"])
     stream.on("info", info => {
+      console.log(`Download started ${new Date().getTime() - this.startTime}ms after creation`)
       // Notify the client that the download started...
       this.send({
         op: "trackInfo",
