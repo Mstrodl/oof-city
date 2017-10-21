@@ -1,0 +1,16 @@
+{
+  "name": "oof-city",
+  "version": "1.0.0",
+  "description": "A dedicated audio sending node for Discord written in Javascript",
+  "main": "app.js",
+  "repository": "https://github.com/Mstrodl/oof-city",
+  "author": "heatingdevice <ipadlover8322@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "eris": "^0.8.0",
+    "node-opus": "^0.2.7",
+    "ws": "^3.2.0",
+    "youtube-dl": "^1.12.2"
+  }
+}
