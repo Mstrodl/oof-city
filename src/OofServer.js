@@ -51,6 +51,7 @@ module.exports = class OofServer {
       ws: ws,
       userId: userId
     })
+    this.guilds[guildId].connection.on("disconnect", () => this.guilds[guildId] = null)
   }
 
   /**

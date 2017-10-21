@@ -3,6 +3,7 @@ let Constants = Eris.Constants
 let VoiceConnection = Eris.VoiceConnection
 let Websocket = require("ws")
 let ytdl = require("youtube-dl")
+let ytdlCore = require("ytdl-core")
 
 /**
  * Represents a voice channel's player
@@ -175,6 +176,27 @@ module.exports = class OofPlayer {
     this.ws.send(JSON.stringify(data))
   }
 
+  downloadYtdl(url) {
+    try {
+      var stream = ytdl(url, ["--default-search", "ytsearch:"])
+    } catch(err) {
+      // Not much we can do D:
+      console.log(`Caught error in youtube-dl, ${err}`)
+      return false
+    }
+    return stream
+  }
+
+  downloadYtdlCore(url) {
+    try {
+      var stream = ytdlCore(url, {filter: "audioonly"})
+    } catch(err) {
+      console.log(`Caught error in ytdl-core, ${err}`)
+      return false
+    }
+    return stream
+  }
+
   /**
    * Plays an arbitrary track. Called by the play websocket play event
    * @private
@@ -185,9 +207,34 @@ module.exports = class OofPlayer {
    * @arg {String=} [opts.endTime] Time to end playback of the track at
    */
   playArbitraryTrack(track, opts = {}) {
-    let stream = ytdl(track.url, ["--format", "bestaudio", "--default-search", "ytsearch:"])
+    let preDownloadTime = new Date().getTime()
+    console.log(`Asked to play track ${new Date().getTime() - this.startTime}ms after instantiated`)
+    if(track.url.match(/^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/i)) var stream = this.downloadYtdlCore(track.url)
+    else var stream = this.downloadYtdl(track.url)
+
+    if(stream === false) {
+      this.send({
+        op: "trackInfo",
+        d: {
+          info: {
+            error: "An error occured while downloading"
+          },
+          guildId: this.guildId,
+          channelId: this.channelId
+        }
+      })
+      this.send({
+        op: "trackEnd",
+        d: {
+          guildId: this.guildId,
+          channelId: this.channelId
+        }
+      })
+      return false
+    }
+
     stream.on("info", info => {
-      console.log(`Download started ${new Date().getTime() - this.startTime}ms after creation`)
+      console.log(`Download started ${new Date().getTime() - preDownloadTime}ms after requested`)
       // Notify the client that the download started...
       this.send({
         op: "trackInfo",
@@ -197,6 +244,10 @@ module.exports = class OofPlayer {
           channelId: this.channelId
         }
       })
+    })
+
+    stream.on("error", err => {
+      console.warn(`Encoutered an error while downloading stream: ${err}`)
     })
 
     let inputArgs = []
